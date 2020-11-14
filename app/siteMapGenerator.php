@@ -11,10 +11,14 @@
         private $reg = [];
         private $siteMapIndex = 0;
 
-        function __construct($path){
+        private $rn="\r\n";
+        private $rnt="\r\n\t";
 
-            if(!file_exists($path)){
-                mkdir($path);
+        function __construct($path = "./", $isDev = false){
+
+            if(!$isDev){
+                $this->rn="";
+                $this->rnt="";
             }
 
             $this->siteMapPath = $path . "/";
@@ -26,6 +30,7 @@
 
         private function Generate()
         {
+            $reg = [];
 
             $page = $this->page;
 
@@ -65,15 +70,10 @@
             $urls = array_unique($urls);
 
             #Формирование масива с регионами
-            foreach($urls as $key => $value){
-                preg_match("~".$this->page."/regions/([\S]*)$~", $value, $tmp_reg);
-                if($tmp_reg != NULL){
-                    $this->reg[] = $tmp_reg[1];
-                }
-            }
+            $reg = $this->getCityList();
 
             #Формируем и записываем sitemap для каждого региона
-            foreach($this->reg as $r_key => $r_value){
+            foreach($reg as $r_key => $r_value){
 
                 $linksArrayObject = new ArrayObject($urls);
                 $reg_urls = $linksArrayObject->getArrayCopy();
@@ -81,12 +81,18 @@
                 foreach($reg_urls as $u_key => $u_value){
                     $reg_urls[$u_key] = preg_replace("~(".$this->page.")(/catalog/.*)~", "$1"."/regions/".$r_value."$2", $u_value);
                 }
-                $this->createSiteMap($reg_urls, 0.9);
+                $this->createSiteMap($reg_urls);
 
             }
 
+            if(file_exists($path)){
+                recursiveRemoveDir($path);
+            }
+
+            mkdir($path . "/sitemap", 0777,true);
+
             #Записываем siteMap для главной страницы
-            $this->createSiteMap($links, 1);
+            $this->createSiteMap($links);
 
             #Генерация главного siteMap в который вложены остальные
             $this->createMainSiteMap();
@@ -94,43 +100,57 @@
 
         #Запись корневого siteMap
         private function createMainSiteMap(){
+            $rn = $this->rn;
+            $rnt = $this->rnt;
+
             $date = date("Y-m-d\TH:i:sP");
 
             $sitemapXML = '<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
 
             $index = $this->siteMapIndex - 1;
 
-            while($index > 0){
+            while($index >= 0){
                 $location = $this->page . "/sitemap" .$index.".xml";
-                $sitemapXML .= "\r\n<sitemap>\r\n\t<loc>{$location}</loc>\r\n\t<lastmod>{$date}</lastmod>\r\n</sitemap>";
+                $sitemapXML .= "{$rn}<sitemap>{$rnt}<loc>{$location}</loc>{$rnt}<lastmod>{$date}</lastmod>{$rn}</sitemap>";
                 $index--;
             }
 
-            $sitemapXML .= "\r\n</sitemapindex>";
+            $sitemapXML .= "{$rn}</sitemapindex>";
 
             $this->writeFile($sitemapXML, "sitemap");
         }
 
         #Запись дочерних siteMap
-        private function createSiteMap($links, $priority){
+        private function createSiteMap($links){
+            $rn = $this->rn;
+            $rnt = $this->rnt;
+
+            $priority = 1;
 
             $sitemapXML = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">';
 
             foreach($links as $key => $value){
+
+                if(preg_match("~/catalog/section/~", $value)){
+                    $priority = 0.9;
+                }else if (preg_match("~/catalog/~", $value)){
+                    $priority = 0.8;
+                }
+                
                 $date = date("Y-m-d\TH:i:sP");
-                $sitemapXML.="\r\n<url>\r\n\t<loc>{$value}</loc>\r\n\t<lastmod>{$date}</lastmod>\r\n\t<changefreq>hourly</changefreq>\r\n\t<priority>{$priority}</priority>\r\n</url>";
+                $sitemapXML.="{$rn}<url>{$rnt}<loc>{$value}</loc>{$rnt}<lastmod>{$date}</lastmod>{$rnt}<changefreq>hourly</changefreq>{$rnt}<priority>{$priority}</priority>{$rn}</url>";
             }
 
-            $sitemapXML.="\r\n</urlset>";
+            $sitemapXML.="{$rn}</urlset>";
 
-            $this->writeFile($sitemapXML, "./sitemap/sitemap".$this->siteMapIndex);
+            $this->writeFile($sitemapXML, "sitemap/sitemap".$this->siteMapIndex);
 
             $this->siteMapIndex++;
             unset($sitemapXMLp);
         }
 
         private function writeFile($file, $name){
-            $fp=fopen($this->siteMapPath.$name.'.xml','w+');
+            $fp = fopen($this->siteMapPath.$name.'.xml','w+');
 
             if(!fwrite($fp,$file)){
                 print('Write error');
@@ -139,11 +159,24 @@
             fclose($fp);
         }
 
+        function recursiveRemoveDir($dir){
+            $includes = glob($dir.'/*');
+        
+            foreach ($includes as $include){
+                if(is_dir($include)){
+                    recursiveRemoveDir($include);
+                }else{
+                    unlink($include);
+                }
+            }
+            rmdir($dir);
+        }
+
         private function getProductList(){
             $count = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/Catalog/count?filter={"ACTIVE":"Y"}'));
             $count = $count->count;
             $once = 200;
-            $numberOfRequests = ceil($count / $once);#563
+            $numberOfRequests = ceil($count / $once);
             $products = [];
             for($i = 1; $i <= $numberOfRequests; $i++){
                 $query = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/Catalog/?filter={"ACTIVE":"Y"}&navParams={"iNumPage":' . $i . ',"nPageSize":' . $once . '}'));
@@ -153,6 +186,16 @@
                 unset($value, $query);
             }
             return $products;
+        }
+
+        private function getCityList(){
+            $sity = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/Cities/'));
+            $reg = [];
+
+            foreach($sity as $key => $value){
+                $reg[] = $value->CODE;
+            }
+            return $reg;
         }
     }
 
