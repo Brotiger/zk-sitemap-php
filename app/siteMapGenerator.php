@@ -4,20 +4,19 @@
 
     class SiteMap
     {
-        private $host; 
-        private $cType;
-        private $page;
+        private $host = "shop.zolotoykod.ru"; 
+        private $cType = "https://";
+        private $page = "https://shop.zolotoykod.ru";
         private $siteMapPath;
         private $reg = [];
         private $siteMapIndex = 0;
 
-        function __construct($url, $path){
+        function __construct($path){
 
-            preg_match("~^(https?://)(.*)~", $url, $tmp);
+            if(!file_exists($path)){
+                mkdir($path);
+            }
 
-            $this->cType = $tmp[1];
-            $this->host = $tmp[2];
-            $this->page = $url;
             $this->siteMapPath = $path . "/";
 
             $this->Generate();
@@ -47,7 +46,7 @@
 
             foreach($links as $key => $value){
                 if(!strstr($value, $this->cType)){
-                    $links[$key] = $this->cType.$this->host.$value;
+                    $links[$key] = $this->page.$value;
                 }
                 $url_info = parse_url($links[$key]);
 
@@ -60,11 +59,14 @@
                 $urls[] = $links[$key];
             }
 
+            #Добавляем sitemap для ajax ссылок
+            $urls = array_merge($urls, $this->getProductList());
+
             $urls = array_unique($urls);
 
             #Формирование масива с регионами
             foreach($urls as $key => $value){
-                preg_match("~".$this->cType.$this->host."/regions/([\S]*)$~", $value, $tmp_reg);
+                preg_match("~".$this->page."/regions/([\S]*)$~", $value, $tmp_reg);
                 if($tmp_reg != NULL){
                     $this->reg[] = $tmp_reg[1];
                 }
@@ -77,7 +79,7 @@
                 $reg_urls = $linksArrayObject->getArrayCopy();
 
                 foreach($reg_urls as $u_key => $u_value){
-                    $reg_urls[$u_key] = preg_replace("~(".$this->cType.$this->host.")(/catalog/.*)~", "$1"."/regions/".$r_value."$2", $u_value);
+                    $reg_urls[$u_key] = preg_replace("~(".$this->page.")(/catalog/.*)~", "$1"."/regions/".$r_value."$2", $u_value);
                 }
                 $this->createSiteMap($reg_urls, 0.9);
 
@@ -121,7 +123,7 @@
 
             $sitemapXML.="\r\n</urlset>";
 
-            $this->writeFile($sitemapXML, "sitemap".$this->siteMapIndex);
+            $this->writeFile($sitemapXML, "./sitemap/sitemap".$this->siteMapIndex);
 
             $this->siteMapIndex++;
             unset($sitemapXMLp);
@@ -136,7 +138,23 @@
 
             fclose($fp);
         }
+
+        private function getProductList(){
+            $count = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/Catalog/count?filter={"ACTIVE":"Y"}'));
+            $count = $count->count;
+            $once = 200;
+            $numberOfRequests = ceil($count / $once);#563
+            $products = [];
+            for($i = 1; $i <= $numberOfRequests; $i++){
+                $query = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/Catalog/?filter={"ACTIVE":"Y"}&navParams={"iNumPage":' . $i . ',"nPageSize":' . $once . '}'));
+                foreach($query as $value){
+                    $products[] = $this->page . "/catalog/" . $value->CODE;
+                }
+                unset($value, $query);
+            }
+            return $products;
+        }
     }
 
-    $SiteMap = new SiteMap("https://shop.zolotoykod.ru","./files");
+    $SiteMap = new SiteMap("./sitemap");
 ?>
