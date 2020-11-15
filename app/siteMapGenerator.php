@@ -15,27 +15,25 @@
         private $host = "shop.zolotoykod.ru"; 
         private $cType = "https://";
         private $page = "https://shop.zolotoykod.ru";
-        private $siteMapPath;
-        private $reg = [];
+        private $siteMapPath = "./";
         private $siteMapIndex = 0;
+        private $nofollow = [];
 
         private $rn="\r\n";
         private $rnt="\r\n\t";
 
-        function __construct($path = "./", $isDev = false){
+        function __construct(bool $isDev = false, array $nofollow = []){
+
+            $this->nofollow = $nofollow;
 
             if(!$isDev){
                 $this->rn="";
                 $this->rnt="";
             }
 
-            if($path == "./"){
-                $this->siteMapPath = $path;
-            }else{
-                $this->siteMapPath = $path . "/";
+            if(!file_exists($this->siteMapPath . "sitemap")){
+                mkdir($this->siteMapPath . "sitemap", 0777,true);
             }
-
-            mkdir($this->siteMapPath . "sitemap", 0777,true);
 
             $this->Generate();
 
@@ -86,6 +84,9 @@
             #Формирование масива с регионами
             $reg = $this->getCityList();
 
+            #Удляем старый sitemap
+            $this->removeSitemap();
+
             #Формируем и записываем sitemap для каждого региона
             foreach($reg as $r_key => $r_value){
 
@@ -98,8 +99,6 @@
                 $this->createSiteMap($reg_urls);
 
             }
-
-            removeSitemap();
 
             #Записываем siteMap для главной страницы
             $this->createSiteMap($links);
@@ -115,14 +114,16 @@
 
             $date = date("Y-m-d\TH:i:sP");
 
-            $sitemapXML = '<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+            $sitemapXML = '<?xml version="1.0" encoding="UTF-8"?>' . $rn . '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
 
-            $index = $this->siteMapIndex - 1;
+            $siteMapIndex = $this->siteMapIndex - 1;
 
-            while($index >= 0){
-                $location = $this->page . "/sitemap" .$index.".xml";
+            $index = 0;
+
+            while($index <= $siteMapIndex){
+                $location = $this->page . "/sitemap/sitemap" .$index.".xml";
                 $sitemapXML .= "{$rn}<sitemap>{$rnt}<loc>{$location}</loc>{$rnt}<lastmod>{$date}</lastmod>{$rn}</sitemap>";
-                $index--;
+                $index++;
             }
 
             $sitemapXML .= "{$rn}</sitemapindex>";
@@ -134,12 +135,19 @@
         private function createSiteMap($links){
             $rn = $this->rn;
             $rnt = $this->rnt;
+            $nofollow = $this->nofollow;
 
             $priority = 1;
 
-            $sitemapXML = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">';
+            $sitemapXML = '<?xml version="1.0" encoding="UTF-8"?>'. $rn .'<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">';
 
             foreach($links as $key => $value){
+
+                foreach($nofollow as $n_key => $n_value){
+                    if(preg_match("~{$n_value}~", $value)){
+                        continue 2;
+                    }
+                }
 
                 if(preg_match("~/catalog/section/~", $value)){
                     $priority = 0.9;
@@ -170,16 +178,14 @@
         }
 
         function removeSitemap(){
-            $includes = glob($this->siteMapPath.'*');
+            if(file_exists($this->siteMapPath . "sitemap.xml")){
+                unlink($this->siteMapPath . "sitemap.xml");
+            }
+
+            $includes = glob($this->siteMapPath.'sitemap/*');
         
             foreach ($includes as $include){
-                if(is_dir($include)){
-                    removeSitemap($include);
-                }else{
-                    if(preg_match("~sitemap[0-9]{0,}\.xml~", $include)){
-                        unlink($include);
-                    }
-                }
+                unlink($include);
             }
         }
 
@@ -210,5 +216,13 @@
         }
     }
 
-    $SiteMap = new SiteMap();
+    if(is_null($argv[1]) || $argv[1] == "false"){
+        $isDev = false;
+    }else{
+        $isDev = true;
+    }
+
+    $nofollow = is_null($argv[2])? [] : explode(",", $argv[2]);
+
+    $SiteMap = new SiteMap($isDev, $nofollow);
 ?>

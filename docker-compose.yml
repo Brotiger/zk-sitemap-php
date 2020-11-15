@@ -6,4 +6,4 @@ services:
     volumes:
       - ${VOLUME_DIR}/app:/usr/src/app
     working_dir: /usr/src/app
-    command: php siteMapGenerator.php
+    command: php siteMapGenerator.php false
