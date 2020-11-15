@@ -32,7 +32,7 @@
             }
 
             if(!file_exists($this->siteMapPath . "sitemap")){
-                mkdir($this->siteMapPath . "sitemap", 0777,true);
+                mkdir($this->siteMapPath . "sitemap", 0755,true);
             }
 
             $this->Generate();
