@@ -29,7 +29,13 @@
                 $this->rnt="";
             }
 
-            $this->siteMapPath = $path . "/";
+            if($path == "./"){
+                $this->siteMapPath = $path;
+            }else{
+                $this->siteMapPath = $path . "/";
+            }
+
+            mkdir($this->siteMapPath . "sitemap", 0777,true);
 
             $this->Generate();
 
@@ -93,11 +99,7 @@
 
             }
 
-            if(file_exists($path)){
-                recursiveRemoveDir($path);
-            }
-
-            mkdir($path . "/sitemap", 0777,true);
+            removeSitemap();
 
             #Записываем siteMap для главной страницы
             $this->createSiteMap($links);
@@ -167,17 +169,18 @@
             fclose($fp);
         }
 
-        function recursiveRemoveDir($dir){
-            $includes = glob($dir.'/*');
+        function removeSitemap(){
+            $includes = glob($this->siteMapPath.'*');
         
             foreach ($includes as $include){
                 if(is_dir($include)){
-                    recursiveRemoveDir($include);
+                    removeSitemap($include);
                 }else{
-                    unlink($include);
+                    if(preg_match("~sitemap[0-9]{0,}\.xml~", $include)){
+                        unlink($include);
+                    }
                 }
             }
-            rmdir($dir);
         }
 
         private function getProductList(){
@@ -207,5 +210,5 @@
         }
     }
 
-    $SiteMap = new SiteMap("./sitemap");
+    $SiteMap = new SiteMap();
 ?>
