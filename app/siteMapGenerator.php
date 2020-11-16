@@ -42,6 +42,7 @@
 
         private function Generate()
         {
+            $urls = [];
             $reg = [];
 
             $page = $this->page;
@@ -67,7 +68,7 @@
                 }
                 $url_info = parse_url($links[$key]);
 
-                if($url_info['host'] != $this->host || strstr($links[$key], "@")){
+                if($url_info['host'] != $this->host){
                     continue;
                 }
 
@@ -101,7 +102,7 @@
             }
 
             #Записываем siteMap для главной страницы
-            $this->createSiteMap($links);
+            $this->createSiteMap($urls);
 
             #Генерация главного siteMap в который вложены остальные
             $this->createMainSiteMap();
@@ -198,6 +199,11 @@
             for($i = 1; $i <= $numberOfRequests; $i++){
                 $query = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/Catalog/?filter={"ACTIVE":"Y"}&navParams={"iNumPage":' . $i . ',"nPageSize":' . $once . '}'));
                 foreach($query as $value){
+
+                    if(strstr($value->CODE, '@') || strstr($value->CODE, 'tel:')){
+                        continue;
+                    }
+
                     $products[] = $this->page . "/catalog/" . $value->CODE;
                 }
                 unset($value, $query);
