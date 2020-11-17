@@ -92,12 +92,16 @@
             foreach($reg as $r_key => $r_value){
 
                 $linksArrayObject = new ArrayObject($urls);
-                $reg_urls = $linksArrayObject->getArrayCopy();
+                $regUrls = $linksArrayObject->getArrayCopy();
+                $clearRegUrl = [];
 
-                foreach($reg_urls as $u_key => $u_value){
-                    $reg_urls[$u_key] = preg_replace("~(".$this->page.")(/catalog/.*)~", "$1"."/regions/".$r_value."$2", $u_value);
+                foreach($regUrls as $u_key => $u_value){
+                    if(preg_match("~^".$this->page."/regions/\w*$~", $u_value) || preg_match("~^".$this->page."$~", $u_value)){
+                        continue;
+                    }
+                    $clearRegUrls[$u_key] = preg_replace("~(".$this->page.")(/catalog/.*)~", "$1"."/regions/".$r_value."$2", $u_value);
                 }
-                $this->createSiteMap($reg_urls);
+                $this->createSiteMap($clearRegUrls);
 
             }
 
@@ -119,12 +123,10 @@
 
             $siteMapIndex = $this->siteMapIndex - 1;
 
-            $index = 0;
-
-            while($index <= $siteMapIndex){
-                $location = $this->page . "/sitemap/sitemap" .$index.".xml";
+            while($siteMapIndex >= 0){
+                $location = $this->page . "/sitemap/sitemap" .$siteMapIndex.".xml";
                 $sitemapXML .= "{$rn}<sitemap>{$rnt}<loc>{$location}</loc>{$rnt}<lastmod>{$date}</lastmod>{$rn}</sitemap>";
-                $index++;
+                $siteMapIndex--;
             }
 
             $sitemapXML .= "{$rn}</sitemapindex>";
