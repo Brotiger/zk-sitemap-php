@@ -96,7 +96,7 @@
                 $clearRegUrl = [];
 
                 foreach($regUrls as $u_key => $u_value){
-                    if(preg_match("~^".$this->page."/regions/\w*$~", $u_value) || preg_match("~^".$this->page."$~", $u_value)){
+                    if(preg_match("~^".$this->page."/regions/[\w-]*$~", $u_value) || preg_match("~^".$this->page."$~", $u_value)){
                         continue;
                     }
                     $clearRegUrls[$u_key] = preg_replace("~(".$this->page.")(/catalog/.*)~", "$1"."/regions/".$r_value."$2", $u_value);
