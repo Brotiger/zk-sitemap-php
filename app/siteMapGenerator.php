@@ -44,6 +44,7 @@
         {
             $urls = [];
             $reg = [];
+            $tags = [];
 
             $page = $this->page;
 
@@ -53,12 +54,12 @@
                 return;
             }
 
-            preg_match_all("~<[Aa][\s]{1}[^>]*[Hh][Rr][Ee][Ff][^=]*=[ '\"\s]*([^ \"'>\s#]+)[^>]*>~", $content, $tmp_home);
+            preg_match_all("~<[Aa][\s]{1}[^>]*[Hh][Rr][Ee][Ff][^=]*=[ '\"\s]*([^ \"'>\s#]+)[^>]*>~", $content, $tmpHome);
             
-            foreach($tmp_home[0] as $key => $value){
+            foreach($tmpHome[0] as $key => $value){
                 
                 if(!preg_match('~<.*[Rr][Ee][Ll]=.?("|\'|).*[Nn][Oo][Ff][Oo][Ll][Ll][Oo][Ww].*?("|\'|).*~', $value)){
-                    $links[] = $tmp_home[1][$key];
+                    $links[] = $tmpHome[1][$key];
                 }
             }
 
@@ -75,7 +76,13 @@
                 $links[$key] = rtrim($links[$key], "/");
                 $links[$key] = preg_replace("~/#.*~", '', $links[$key]);
                 $urls[] = $links[$key];
+
+                preg_match("~/catalog/section/(.*)~", $value, $tmpTags);
+
+                $tags[] = $tmpTags[1];
             }
+
+            $urlsTags = $this->getTagList($tags);
 
             #Добавляем sitemap для ajax ссылок
             $urls = array_merge($urls, $this->getProductList());
@@ -104,6 +111,8 @@
                 $this->createSiteMap($clearRegUrls);
 
             }
+
+            $urls = array_merge($urls, $urlsTags);
 
             #Записываем siteMap для главной страницы
             $this->createSiteMap($urls);
@@ -211,6 +220,22 @@
                 unset($value, $query);
             }
             return $products;
+        }
+
+        private function getTagList($tmpTags){
+            $tags = [];
+            foreach($tmpTags as $t_value){
+                $query = json_decode(file_get_contents("https://api.dev.zolotoykod.ru/v1/shop/CatalogSection/" . $t_value));
+                $tagList = $query->UF_FILTER_TAGS;
+                if(!is_null($tagList)){
+                    foreach($tagList as $value){
+                        $tags[] = $this->page . "/catalog/section/" . $t_value . "/" . $value->CODE;
+                    }
+                }
+                unset($query);
+            }
+            $tags = array_unique($tags);
+            return $tags;
         }
 
         private function getCityList(){
