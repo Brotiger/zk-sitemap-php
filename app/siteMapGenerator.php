@@ -45,6 +45,7 @@
             $urls = [];
             $reg = [];
             $tags = [];
+            $links = [];
 
             $page = $this->page;
 
@@ -76,14 +77,11 @@
                 $links[$key] = rtrim($links[$key], "/");
                 $links[$key] = preg_replace("~/#.*~", '', $links[$key]);
                 $urls[] = $links[$key];
-
-                preg_match("~/catalog/section/(.*)~", $value, $tmpTags);
-
-                $tags[] = $tmpTags[1];
             }
+            
+            $urlsTags = $this->getTagList();
 
-            $urlsTags = $this->getTagList($tags);
-
+            $urls = array_merge($urls ,$this->formCatalogSection());
             #Добавляем sitemap для ajax ссылок
             $urls = array_merge($urls, $this->getProductList());
 
@@ -201,6 +199,26 @@
             }
         }
 
+        private function formCatalogSection(){
+            $formSections = [];
+            $sections = $this->getCatalogSection();
+                foreach($sections as $value){
+
+                    $formSections[] = $this->page . "/catalog/section/" . $value;
+                }
+            return $formSections;
+        }
+
+        private function getCatalogSection(){
+            $sections = [];
+            $query = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/CatalogSection/?filter={"DEPTH_LEVEL":"3","ACTIVE":"Y","GLOBAL_ACTIVE":"Y"}&navParams={"nPageSize":999}'));
+                foreach($query as $value){
+
+                    $sections[] = $value->CODE;
+                }
+            return $sections;
+        }
+
         private function getProductList(){
             $count = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/Catalog/count?filter={"ACTIVE":"Y"}'));
             $count = $count->count;
@@ -222,9 +240,11 @@
             return $products;
         }
 
-        private function getTagList($tmpTags){
+        private function getTagList(){
             $tags = [];
-            foreach($tmpTags as $t_value){
+            $tagsName = $this->getCatalogSection();
+
+            foreach($tagsName as $t_value){
                 $query = json_decode(file_get_contents("https://api.dev.zolotoykod.ru/v1/shop/CatalogSection/" . $t_value));
                 $tagList = $query->UF_FILTER_TAGS;
                 if(!is_null($tagList)){
