@@ -85,6 +85,8 @@
             #Добавляем sitemap для ajax ссылок
             $urls = array_merge($urls, $this->getProductList());
 
+            $urls = array_merge($urls, $urlsTags);
+
             $urls = array_unique($urls);
 
             #Формирование масива с регионами
@@ -109,8 +111,6 @@
                 $this->createSiteMap($clearRegUrls);
 
             }
-
-            $urls = array_merge($urls, $urlsTags);
 
             #Записываем siteMap для главной страницы
             $this->createSiteMap($urls);
@@ -211,8 +211,13 @@
 
         private function getCatalogSection(){
             $sections = [];
-            $query = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/CatalogSection/?filter={"DEPTH_LEVEL":"3","ACTIVE":"Y","GLOBAL_ACTIVE":"Y"}&navParams={"nPageSize":999}'));
-                foreach($query as $value){
+            $query_3 = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/CatalogSection/?filter={"DEPTH_LEVEL":"3","ACTIVE":"Y","GLOBAL_ACTIVE":"Y"}&navParams={"nPageSize":999}'));
+            $query_2 = json_decode(file_get_contents('https://api.dev.zolotoykod.ru/v1/shop/CatalogSection/?filter={"DEPTH_LEVEL":"2","ACTIVE":"Y","GLOBAL_ACTIVE":"Y"}&navParams={"nPageSize":999}'));
+                foreach($query_3 as $value){#Перебло 3 уровня вложенности
+
+                    $sections[] = $value->CODE;
+                }
+                foreach($query_2 as $value){#Перебор 2 уровня вложенности
 
                     $sections[] = $value->CODE;
                 }
